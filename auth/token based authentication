@@ -1,0 +1,26 @@
+토큰에 데이터를 담아 인증하는 방법
+
+구성 요소
+- 헤더 : 메타데이터(암호화 방식 등) 
+- 페이로드 : 사용자 데이터(JWT - Claims)
+- 서명 : HMAC용 해시 값
+
+이점
+- stateless
+- 데이터 변조 방지(hmac)
+
+단점
+- 토큰 탈취
+- 데이터 유출(헤더, 페이로드)
+- 서버 오버헤드
+
+토큰 전송(HTTP 헤더)
+Authorization: <Type> <Credentials-Token>
+
+토큰 타입
+Basic  : 아이디, 비밀번호 base64 인코딩 값을 토큰으로 사용
+Bearer : JWT, OAuth2 토큰
+Digest 
+HOBA   : 전자 서명 기반 인증
+Mutual  
+

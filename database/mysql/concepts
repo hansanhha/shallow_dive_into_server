@@ -1,0 +1,60 @@
+DDL(Data Definitoin Langauge)
+- Database: CREATE, DROP
+- Schema: CREATE
+- Table: CREATE TABLE, ALTER TABLE, DROP TABLE
+- Data Types
+    - Date, Time: DATE, TIME, DATETIME
+- Constraints: PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, DEFAULT
+- Index
+
+DCL(Data Control Language)
+- User Management: Privilege, Role, CREATE USER, GRANT, REVOKE, DROP USER
+- Security
+- SSL
+
+DML(Data Manipulation Language)
+- Query: INSERT, SELECT, UPDATE, DELETE
+- Join: INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN
+- Order By, Group By
+- Limit, Offset
+- Count
+- Prepared Statement
+
+TCL(Transaction Contol Language)
+- Transaction: START TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT
+
+Object
+- Views
+- Triggers
+- Stored Procedures
+- Functions
+
+Engine
+- MySQL Engine
+- InnoDB
+- MyISAM
+
+Integrity
+- Data Integrity
+- Reference Integrity
+
+Data 
+- Concurrent Control/Lock
+- Backup & Recovery: mysqldump
+- Replication
+- Partitioning
+
+High Availability
+- Clustering
+
+Performance Tuning
+- Execution Plan
+- Optimizer
+
+OTHERS
+- Connection Management
+- Normalization
+- SQL Injection
+- Reserved Words
+
+

@@ -1,27 +1,28 @@
-DDL(Data Definitoin Langauge)
-- Database: CREATE, DROP
-- Schema: CREATE
-- Table: CREATE TABLE, ALTER TABLE, DROP TABLE
+DDL(Data Definition Language)
+- Database
+- Schema
+- Table
 - Data Types
     - Date, Time: DATE, TIME, DATETIME
-- Constraints: PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, DEFAULT
+- Constraints
 - Index
 
 DCL(Data Control Language)
-- User Management: Privilege, Role, CREATE USER, GRANT, REVOKE, DROP USER
+- User
+- Privileges
 - Security
 - SSL
 
 DML(Data Manipulation Language)
-- Query: INSERT, SELECT, UPDATE, DELETE
-- Join: INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN
+- Query
+- Join
 - Order By, Group By
 - Limit, Offset
 - Count
 - Prepared Statement
 
-TCL(Transaction Contol Language)
-- Transaction: START TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT
+TCL(Transaction Control Language)
+- Transaction
 
 Object
 - Views
@@ -40,7 +41,7 @@ Integrity
 
 Data 
 - Concurrent Control/Lock
-- Backup & Recovery: mysqldump
+- Backup & Recovery
 - Replication
 - Partitioning
 
@@ -57,4 +58,10 @@ OTHERS
 - SQL Injection
 - Reserved Words
 
-
+MySQL
+- MySQL Server
+- MySQL Client
+- MySQL Workbench
+- MySQL Shell
+- MySQL Router
+- MySQL Connector

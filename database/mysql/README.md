@@ -1,5 +1,5 @@
-[concepts](concepts)
+[Concepts](concepts)
 
-[architecture, engine](architecture,%20engine.md)
+[Architecture](architecture.md)
 
 [User, Privileges](user,%20privileges.md)

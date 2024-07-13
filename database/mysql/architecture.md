@@ -1,6 +1,6 @@
 [MySQL Server Architecture](#mysql-server-architecture)
-- [SQL Layer Engine](#sql-layer-engine)
-- [Storage Layer Engine](#storage-layer-engine---pluggable-storage-engine-architecture-)
+- [SQL Layer(Server Layer)](#sql-layer-server-layer)
+- [Storage Layer](#storage-layer---pluggable-storage-engine-architecture)
 - [Handler](#handler)
 - [Other Components](#other-components)
 - [Plugin Architecture](#plugin-architecture)
@@ -28,7 +28,7 @@ MySQL은 클라이언트-서버 아키텍처를 따름
 - SQL 쿼리를 받아서 처리하고 `result set`을 반환
 - Server는 여러 클라이언트의 스토리지, 보안, 동시성 접근(concurrent access)를 관리함
 
-### SQL Layer Engine
+### SQL Layer (Server Layer)
 
 **NoSQL**
 
@@ -66,7 +66,7 @@ SQL 쿼리 분석을 통해 구조와 구문 파악, 추가 처리를 위해 구
 
 핸들러에게 받은 결과를 Client에게 반환하거나 또 다른 Handler 요청의 입력으로 연결
 
-### Storage Layer Engine - Pluggable Storage Engine Architecture 
+### Storage Layer - Pluggable Storage Engine Architecture
 
 MySQL의 각 Storage Engine은 실질적으로 디스크에 데이터 저장, 검색 및 관리를 수행하는 컴포넌트임
 

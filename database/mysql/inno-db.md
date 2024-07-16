@@ -49,7 +49,9 @@ disk와 데이터를 캐시한 memory 사이에서 writing 실패가 일어난 �
 
 MySQL InnoDB는 어떻게 성능을 향상시키면서 트랜잭션 ACID를 준수할까?
 
-## InnoDB Architecture, Components
+## InnoDB Architecture
+
+InnoDB는 Buffer Pool과 Log Buffer 등을 통해 고성능을 유지하면서 트랜잭션 ACID도 준수함 (상세 구성요소는 아래 설명 참고)
 
 <img src="./images/innodb architecture.png" alt="innodb architecture" style="width: 80%; height: 80%"/>
 
@@ -57,13 +59,19 @@ MySQL InnoDB는 어떻게 성능을 향상시키면서 트랜잭션 ACID를 준�
 
 <img src="./images/innodb architecture2.png" alt="innodb architecture2" style="width: 90%; height: 90%"/>
 
-MySQL의 기본 Storage Engine
+## InnoDB Data Units
 
 ### Tablespace
 
-데이터베이스의 데이터와 인덱스를 물리적 디스크에 저장하는 논리적 저장 구조로, InnoDB의 테이블과 인덱스가 Tablespace에 저장됨
+tablespace는 하나 이상의 **data file**(binary file)을 저장하는 논리적 저장 컨테이너임
 
-**Tablespace 종류**
+data file은 binary로 디스크에 저장되며 InnoDB의 기본 저장단위인 page 또는 block으로 구성됨
+
+데이터베이스의 테이블과 인덱스같은 연관된(related) 데이터베이스 객체를 그룹화하고
+
+InnoDB의 데이터 저장을 위한 최상위 구조 역할을 함(InnoDB의 테이블과 인덱스가 Tablespace에 저장됨)
+
+**tablespace 종류**
 - System Tablespace
   - MySQL의 기본 Tablespace로, data dictionary, change buffer, transaction log 등 중요한 시스템 데이터를 저장함
   - `ibdata1` 파일로 저장됨
@@ -88,14 +96,71 @@ MySQL의 기본 Storage Engine
   - 여러 Data Page를 묶은 단위로, 효율적으로 데이터 저장 공간을 관리하기 위해 사용
 - Segment
   - Index Segment, Data Segment 등 Data Page와 Extent를 포함하는 논리적 그룹
-  
+
+### Pages
+
+tablespace에 저장되는 각 data file는 page로 구성됨
+
+page는 InnoDB에서 disk에 저장된 물리적인 binary data file을 다루는 기본 저장단위로 보통 16KB 사이즈를 가짐
+
+테이블의 실제 row/index를 저장하는 요소로 각 page는 한 개 이상의 row나 index를 저장함 
+
+**page 종류** 
+- Data Pages  : 실제 table 데이터를 포함한 page
+- Index Pages : B-tree 구조로 인덱스를 저장한 page
+- Undo Pages  : 트랜잭션 롤백 시 사용될 데이터를 저장한 page
+- System Pages: tablespace 자체에 대한 정보를 포함한 page
+
+**page 구조**
+- page header
+- data area
+- page trailer
+
+### Blocks
+
+보통 **"block"** 은 OS나 disk 수준에서 물리적 저장 단위를 일컬음
+
+InnoDB에선 block을 고정된 크기의 데이터 단위로써 page와 혼용하여 표현함
+
+### Relationship and Interaction between Tablespaces,Data files, Pages(Blocks) 
+
+Hierarchy
+- Tablespace > Data Files> Pages(Blocks)
+- tablespaces  : data file에 대한 논리적 컨테이너
+- data files   : pages(block)로 구성되어 디스크에 위치한 물리적 파일
+- pages(blocks): 실제 데이터를 저장하는 기본 단위 
+
+Physical and Logical Management
+- tablespaces, data files: 스토리지 관리를 위한 논리적 구조
+- pages: 스토리지 물리적 할당을 나타냄 
+
+I/O Operations: 
+- page 수준에서 read/write 작업 수행
+- 단 하나의 row만 필요하거나 수정되는 경우에도 전체 page를 read/write함
+
+### Clustered Index with Primary Key
+
+InnoDB는 클러스터된 인덱스(일반적으로 기본 키)를 기반으로 테이블 데이터를 구성함
+
+즉, 실제 데이터 row는 기본 키 순서로 저장됨
+
+기본 키를 기반으로 한 쿼리(정렬이나 range scan)를 사용할 때 row에 접근하는 속도가 빨라짐
+
+### Secondary Indexes
+
+InnoDB의 보조 인덱스는 실제 row의 물리적 위치에 대한 포인터가 대신 해당 row의 기본 키 값을 저장함
+
+## InnoDB In-Memory Components
+
 ### Buffer Pool, Log Buffer
 
 물리적인 disk에 접근하는 i/o 작업은 느리기 때문에 InnoDB는 두 종류의 캐시를 사용하는데, 이 캐시들은 메모리에서 작동함
 
 Buffer Pool
 - LRU 캐시로 동작
-- 스레드 풀처럼 Buffer(실제 데이터)를 가지고 있는 Buffer Pool 
+- 스레드 풀처럼 Buffer(실제 데이터)를 가지고 있는 Buffer Pool
+- 데이터 변경이 적용되면 변경사항은 disk의 tablespace가 아닌 Buffer Pool에만 적용됨
+- 해당 변경사항의 page를 **"Dirty Page"**로 표시함
 
 Log Buffer
 - Log 데이터를 가지고 있는 Buffer
@@ -104,31 +169,25 @@ Log Buffer
 - Log는 변경된 값을 포함하고 있어서 시스템이 실패한 경우, log 파일을 통해 복구할 수 있음
 - "Binlog"는 MySQL server layer에서 작성되는 log로 storage engine의 Log와 전혀 다른 것임
 
-### Buffer Pool's Page, Checkpoint
+### Write-Ahead Logging (WAL)
 
-**Page**
+WAL은 데이터베이스가 데이터의 무결성(Integrity)과 지속성(Durability)를 보장하기 위해 사용되는 기본 개념임
 
-page는 InnoDB에서 disk에 저장된 물리적인 binary data file을 다루는 기본 저장단위임
+실제 물리 디스크에 데이터 변경사항을 반영하기 전에, 먼저 로그 파일에 변경사항을 로그해야 함
 
-page를 구성하는 각 data file은 보통 16KB 사이즈를 가짐
+시스템 실패, 충돌이 발생한 경우 데이터베이스는 로그를 통해 데이터를 복구하여 트랜잭션 ACID를 유지할 수 있음
 
-page 종류
-- Data Pages  : 실제 table 데이터를 포함한 page
-- Index Pages : B-tree 구조로 인덱스를 저장한 page
-- Undo Pages  : 트랜잭션 롤백 시 사용될 데이터를 저장한 page
-- System Pages: tablespace 자체에 대한 정보를 포함한 page 
+Log Buffer와 Redo Log가 이 역할을 담당함
 
-데이터 변경이 적용되면 변경사항은 disk의 tablespace가 아닌 Buffer Pool에만 적용됨
-
-Buffer Pool은 여러 개의 page로 구성되어 있는데, 해당 변경사항의 page를 **"Dirty Page"**로 표시함
-
-**Checkpoint**
+### Checkpoint
 
 데이터 무결성을 유지하고 시스템 실패로 인해 로그 파일로부터 데이터를 복구해야 될 때 복구 시간을 줄이기 위해 사용되는 메커니즘으로, Buffer Pool에 있는 Dirty page를 disk에 주기적으로 기록하여 데이터 일관성을 보장함
 
 Checkpoint가 발생하면 InnoDB는 log 파일과 tablespace file의 동기화를 위해 Buffer Pool의 page들을 tablespace file에 flush하고 log 파일에 "Checkpoint record"를 write함
 
 Checkpoint 알고리즘 중 InnoDB는 "Fuzzy checkpoint" 알고리즘을 사용함
+
+## InnoDB On-Disk Components
 
 ### Double Write Buffer
 
@@ -138,7 +197,15 @@ InnoDB가 tablespace file에 dirty page를 write할 때 내부적으로 가장 �
 
 double write buffer는 메모리가 아닌 "disk"에 위치하며 시스템 실패로 인해 데이터가 깨지거나 일부분만 write된 경우 log file 이전에 복구하는 용도로 사용됨
 
-## Read, Write Operation
+## Data Operation
+
+**Insert, Update, Delete**
+
+데이터 삽입, 수정, 삭제 시 InnoDB는 Buffer Pool의 page를 수정함
+
+변경사항은 제어된 방식으로 I/O 작업을 최적화 디스크에 플러시됨  
+
+page가 데이터 삽입으로 가득차면 page가 분할되고 데이터가 재배포되어 인덱스의 b-tree 구조를 유지함 
 
 **read**
 

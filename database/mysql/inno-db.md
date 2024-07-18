@@ -150,18 +150,15 @@ InnoDB는 클러스터된 인덱스(일반적으로 기본 키)를 기반으로 
 
 InnoDB의 보조 인덱스는 실제 row의 물리적 위치에 대한 포인터가 대신 해당 row의 기본 키 값을 저장함
 
-## InnoDB In-Memory Components
+## Buffer Pool, Log Buffer
 
-### Buffer Pool, Log Buffer
-
-물리적인 disk에 접근하는 i/o 작업은 느리기 때문에 InnoDB는 두 종류의 캐시를 사용하는데, 이 캐시들은 메모리에서 작동함
+매번 디스크 i/o 작업을 하면 성능이 떨어지므로 InnoDB는 메모리 영역에서 두 종류의 캐시를 사용해서 디스크 i/o 작업을 줄여 성능을 최적화함
 
 Buffer Pool
-- LRU 캐시로 동작
-- 스레드 풀처럼 Buffer(실제 데이터)를 가지고 있는 Buffer Pool
-- 데이터 변경이 적용되면 변경사항은 disk의 tablespace가 아닌 Buffer Pool에만 적용됨
-- 해당 변경사항의 page를 **"Dirty Page"**로 표시함
-
+- page(data page, index page 등)을 가지고 있는 메모리 영역
+- LRU(Least Recently Used) 알고리즘 사용 (자주 사용되는 page는 보관하고, 적게 사용되는 page는 버리고 새로운 page 저장)
+- 트랜잭션 커밋 시 변경사항은 **Dirty Page**로 표시되고 Buffer Pool의 Flush 리스트에 보관됨
+ 
 Log Buffer
 - Log 데이터를 가지고 있는 Buffer
 - 시스템이 실패해도 트랜잭션 보장(무결성)을 위해 사용되며 트랜잭션 로그는 InnoDB의 Log와 동일함
@@ -169,33 +166,117 @@ Log Buffer
 - Log는 변경된 값을 포함하고 있어서 시스템이 실패한 경우, log 파일을 통해 복구할 수 있음
 - "Binlog"는 MySQL server layer에서 작성되는 log로 storage engine의 Log와 전혀 다른 것임
 
+## Log System in InnoDB
+
+InnoDB는 데이터베이스 무결성, 일관성, 지속성을 위해 로그 파일에 변경사항을 기록함
+
+로그 파일은 시스템 실패, 충돌, 복제, 추적, 트랜잭션 롤백, 재수행 등의 용도로 사용됨
+
 ### Write-Ahead Logging (WAL)
 
 WAL은 데이터베이스가 데이터의 무결성(Integrity)과 지속성(Durability)를 보장하기 위해 사용되는 기본 개념임
 
-실제 물리 디스크에 데이터 변경사항을 반영하기 전에, 먼저 로그 파일에 변경사항을 로그해야 함
+**실제 물리 디스크에 반영하기 전에, 먼저 로그 파일에 변경사항을 로그**해야
 
 시스템 실패, 충돌이 발생한 경우 데이터베이스는 로그를 통해 데이터를 복구하여 트랜잭션 ACID를 유지할 수 있음
 
 Log Buffer와 Redo Log가 이 역할을 담당함
 
+**InnoDB WAL 동작 과정**
+- 트랜잭션 커밋으로 데이터 변경사항이 메모리의 Buffer Pool에 작성됨(dirty page)
+- 변경사항이 disk에 반영되기 전에 Redo Log에도 기록함
+- Buffer Pool의 데이터가 디스크의 데이터 파일에 flush
+- 문제가 발생한 경우 InnoDB는 redo log를 사용해서 트랜잭션을 다시 실행해서 데이터베이스를 일관된 상태로 만듦
+
+### Types of Log Files in InnoDB
+
+#### Redo Logs (WAL Logs)
+
+InnoDB의 WAL 시스템 주요 구성 요소로, 실제 디스크의 데이터 파일에 반영되기 전에 데이터 수준에서 발생된 모든 변경사항(insert, delete, update)을 기록함
+
+시스템 충돌, 실패 시 데이터베이스 일관성 유지를 위해 트랜잭션을 다시 실행하는 데 사용됨
+
+또한 데이터베이스 스키마(메모리를 거치지 않고 직접 disk에 작성) 변경사항(테이블의 물리적인 구조 변경)도 redo log에 기록됨 - 다만 복제에 관한 건 binary log에서 기록
+
+#### Undo Logs
+
+트랜잭션 롤백과 MVCC에서 사용되는 로그 파일로, 트랜잭션에 의해 수정된 데이터베이스 레코드의 이전 값(old value)을 기록함
+
+MVCC(Multi-Version Concurrency Control)에 사용되는 버전 관리 메커니즘을 제공
+
+#### Binary Logs (Binlogs)
+
+MySQL의 복제(replication), 데이터 복구 절차에 사용되는 로그 파일
+
+데이터베이스의 모든 변경사항을 기록함 (redo log와 달리 다른 데이터베이스로의 복제에 적합한 형식으로 기록)
+
+또한 모든 DDL 변경사항을 기록하여 master에서 실행된 스키마 변경사항을 slave 데이터베이스에도 적용할 수 있도록 하거나 추적을 가능하게 함
+
+#### General Query and Slow Query Logs
+
+모니터링, 트러블 슈팅 용 로그 파일
+
+general query log: server가 받은 모든 쿼리 기록
+
+slow qeury log: 실행 시간이 특정 시간보다 더 오래 걸린 쿼리 기록
+
+## Transaction Manangement
+
 ### Checkpoint
 
 데이터 무결성을 유지하고 시스템 실패로 인해 로그 파일로부터 데이터를 복구해야 될 때 복구 시간을 줄이기 위해 사용되는 메커니즘으로, Buffer Pool에 있는 Dirty page를 disk에 주기적으로 기록하여 데이터 일관성을 보장함
 
-Checkpoint가 발생하면 InnoDB는 log 파일과 tablespace file의 동기화를 위해 Buffer Pool의 page들을 tablespace file에 flush하고 log 파일에 "Checkpoint record"를 write함
+Checkpoint가 발생하면 InnoDB는 log 파일과 tablespace file의 동기화를 위해 Buffer Pool의 dirty page들을 tablespace file에 flush하고 log 파일에 "Checkpoint record"를 write함
 
 Checkpoint 알고리즘 중 InnoDB는 "Fuzzy checkpoint" 알고리즘을 사용함
 
-## InnoDB On-Disk Components
+## Multi-Version Concurrency Control (MVCC)
 
-### Double Write Buffer
+MVCC는 read operation 시 row를 잠구지 않고 높은 트랜잭션 처리량과 일관성을 달성하기 위해 InnoDB에서 사용하는 동시성 제어 방법임
+
+주 목적은 잠금을 사용하지 않는 일관된 읽기를 제공하는 데 있음
+
+**Versioning Mechanism**
+
+row를 여러 가지 버전으로 관리해서, 트랜잭션 격리 수준(isolation)에 따라 특정 시점의 데이터베이스 스냅샷을 확인함
+
+다른 트랜잭션의 작업이 완료되기를 기다리지 않고 여러 트랜잭션이 동시에 read/write를 수행할 수 있음
+
+- 예시
+    - A 트랜잭션이 row를 업데이트
+    - 해당 row는 undo log에 원래 버전이 기록되고, 새로운 버전은 buffer pool에 저장됨
+    - B 트랜잭션에서 row를 읽을 때 `READ_UNCOMMITTED`인 경우 buffer pool의 새로운 버전을 읽음
+    - `READ_COMMITTED` 인 경우 undo log의 원래 버전을 읽음
+
+**Read Views**
+
+트랜잭션이 데이터를 읽을 때 일관적인 스냅샷을 볼 수 있도록 InnoDB가 "read view"를 생성함으써 트랜잭션에 표시되는 row의 버전을 식별함
+
+**Row Versions**
+
+트랜잭션이 row를 수정할 때 기존 데이터를 덮어쓰지 않고, 새로운 row version을 **undo log**에 기록함
+
+다른 트랜잭션에서 변경사항이 반영되기 전의 오리지널 버전을 확인할 수 있음
+
+**Visibility Check**
+
+row에 접근하기 전 InnoDB는 visibility check를 수행해서 기다려야 되는지, 현재 버전이나 이전 버전 확인해야 되는지 결정함
+
+**Purge Process**
+
+InnoDB는 주기적으로 더이상 필요없는 오래된 버전의 row(undo log)를 삭제하여 공간을 비우고 성능을 유지함
+
+오랜 시간 동안 특정 트랜잭션이 유지되면 undo log를 삭제하지 못하고 유지해야 하기 때문에 문제가 발생할 수 있다
+
+## Double Write Buffer
 
 InnoDB가 tablespace file에 dirty page를 write할 때 내부적으로 가장 먼저 **"Double Write Buffer"** 이라는 곳에 변경사항을 write함
 
 이후 tablespace file에 fsync함
 
 double write buffer는 메모리가 아닌 "disk"에 위치하며 시스템 실패로 인해 데이터가 깨지거나 일부분만 write된 경우 log file 이전에 복구하는 용도로 사용됨
+
+
 
 ## Data Operation
 

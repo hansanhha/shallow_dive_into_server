@@ -200,9 +200,46 @@ InnoDB의 WAL 시스템 주요 구성 요소로, 실제 디스크의 데이터 �
 
 #### Undo Logs
 
-트랜잭션 롤백과 MVCC에서 사용되는 로그 파일로, 트랜잭션에 의해 수정된 데이터베이스 레코드의 이전 값(old value)을 기록함
+트랜잭션 롤백과 MVCC에서 사용되는 로그 파일로, DML(INSERT, UPDATE, DELETE) 트랜잭션에 의해 수정된 데이터베이스 레코드의 이전 값(old value)을 기록함
 
 MVCC(Multi-Version Concurrency Control)에 사용되는 버전 관리 메커니즘을 제공
+
+-> 특정 커넥션에서 데이터를 변경하는 도중에 다른 커넥션에서 데이터를 조회하면 트랜잭션 격리 수준에 맞게 변경 중인 레코드를 읽지 않고 언두 로그에 백업해둔 데이터를 읽어서 반환함 (격리 수준 보장)
+
+**주의점**
+
+오랜 시간동안 트랜잭션이 실행되면 언두 로그의 데이터를 유지해야 하므로 다른 트랜잭션의 언두 로그를 삭제하지 못한 채로 언두 로그에 저장되는 데이터 양이 급격히 늘어날 수 있음
+
+빈번하게 변경된 레코드를 조회하는 쿼리가 실행되면 InnoDB 스토리지 엔진은 언두 로그의 이력을 필요한 만큼 스캔해야 하므로 필요한 레코드를 찾을 수 있기 때문에 쿼리의 성능이 떨어짐
+
+**언두 테이블스페이스와 롤백 세그먼트**
+
+언두 로그가 저장되는 공간
+
+언두 테이블 스페이스 당: 1~128개 롤백 세그먼트를 가짐
+
+롤백 세그먼트 당: InnoDB의 페이지 크기를 16바이트로 나눈 값의 개수만큼 언두 슬롯을 가짐
+
+페이지 크기가 16KB인 경우: (16 * 1024) / 16 = 1024개의 언두 슬롯
+
+```text
+mysql> SELECT TABLESPACE_NAME, FILE_NAME
+    -> FROM INFORMATION_SCHEMA.FILES
+    -> WHERE FILE_TYPE LIKE 'UNDO LOG';
++-----------------+------------+
+| TABLESPACE_NAME | FILE_NAME  |
++-----------------+------------+
+| innodb_undo_001 | ./undo_001 |
+| innodb_undo_002 | ./undo_002 |
++-----------------+------------+
+2 rows in set (0.01 sec)
+```
+
+**최대 동시 트랜잭션 수**
+
+InnoDB 페이지 크기(기본 값: 16KB) / 16 * 롤백 세그먼트 개수(기본 값: 128) * 언두 테이블 스페이스 개수(기본 값: 2)
+
+= 131072(16 * 1024 / 16 * 128 * 2 /2)
 
 #### Binary Logs (Binlogs)
 
@@ -270,13 +307,21 @@ InnoDB는 주기적으로 더이상 필요없는 오래된 버전의 row(undo lo
 
 ## Double Write Buffer
 
-InnoDB가 tablespace file에 dirty page를 write할 때 내부적으로 가장 먼저 **"Double Write Buffer"** 이라는 곳에 변경사항을 write함
+리두 로그는 변경된 내용만 기록하므로 시스템 실패/충돌 발생 시 일부분만 기록될 수 있기 때문에
 
-이후 tablespace file에 fsync함
+InnoDB는 tablespace file에 dirty page를 기록할 때 변경된 데이터를 모두 모아서 먼저 system tablespace의 **"Double Write Buffer"** 이라는 곳에 변경사항을 기록함
+
+이후 적절한 tablespace에 dirty page를 기록
 
 double write buffer는 메모리가 아닌 "disk"에 위치하며 시스템 실패로 인해 데이터가 깨지거나 일부분만 write된 경우 log file 이전에 복구하는 용도로 사용됨
 
+## Transaction Commit Synchronazation Component
 
+시스템 비정상 종료, 충돌 등으로 인해 복구하거나
+
+데이터 무결성을 지키기 위해 트랜잭션 커밋 시 복구 컴포넌트에 내용을 반영해야 함
+
+동기화 필요 컴포넌트: Double Write Buffer, Redo Log, Binary Log 등
 
 ## Data Operation
 

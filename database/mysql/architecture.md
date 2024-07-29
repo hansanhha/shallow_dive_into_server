@@ -6,7 +6,7 @@
 - [Plugin Architecture](#plugin-architecture)
 - [Component: Advanced Plugin](#component-advanced-plugin)
 
-**[Data Processing process](#data-processing-process)**
+**[Data Workflow](#data-workflow)**
 
 [MySQL Server Thread-Based Architecture](#mysql-server-thread-based-architecture)
 
@@ -112,11 +112,11 @@ Storage Engine은 MySQL의 [Handler](https://dev.mysql.com/doc/dev/mysql-server/
 
 ### Plugin Architecture
 
-스프링의 PSA처럼 MySQL은 다형성을 활용하여 특정 모듈을 원하는 대로 갈아끼울 수 있다 
+스프링의 PSA처럼 MySQL은 다형성을 활용하여 특정 모듈을 원하는 대로 갈아끼울 수 있음 
 
-이러한 모듈을 Plugin이라고 부르며 여러 종류의 플러그인을 MySQL Server에 런타임에 로드/언로드할 수 있다
+이러한 모듈을 Plugin이라고 부르며 여러 종류의 플러그인을 MySQL Server에 런타임에 로드/언로드 가능
 
-각 플러그인은 타입에 따라 기능을 제공한다 [Types of Plugins](https://dev.mysql.com/doc/extending-mysql/8.4/en/plugin-types.html)
+각 플러그인은 타입에 따라 기능 제공 [Types of Plugins](https://dev.mysql.com/doc/extending-mysql/8.4/en/plugin-types.html)
 
 [MySQL Server Plugin](https://dev.mysql.com/doc/refman/8.4/en/server-plugins.html)
 
@@ -129,7 +129,7 @@ Storage Engine은 MySQL의 [Handler](https://dev.mysql.com/doc/dev/mysql-server/
 
 [MySQL Components](https://dev.mysql.com/doc/refman/8.4/en/components.html)
 
-## Data Processing process
+## Data Workflow
 
 MySQL에서의 데이터 작업은 크게 SQL 레이어와 Storage Engine 레이어로 나뉨
 

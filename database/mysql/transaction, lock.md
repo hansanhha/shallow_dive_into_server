@@ -1,11 +1,20 @@
 [Transaction](#transaction)
 
+[MySQL Isolation Level](#mysql-isolation-level)
+
 [MySQL Engine Lock](#mysql-engine-lock)
 - [Global Lock](#global-lock)
 - [Backup Lock](#backup-lock)
 - [Table Lock](#table-lock)
 - [Named Lock](#named-lock)
 - [Metadata Lock](#metadata-lock)
+[Storage Engine Lock](#storage-engine-lock)
+- [InnoDB Lock](#innodb-lock)
+  - [Record Lock](#레코드-락record-lock)
+  - [Gap Lock](#갭-락gap-lock)
+  - [Next-Key Lock](#넥스트-키-락next-key-lock)
+  - [Auto-Increment Lock](#자동-증가-락autoinc-lock)
+  - [Record Lock vs Next-Key Lock](#레코드-락-vs-넥스트-키-락)
 
 ## Transaction
 
@@ -30,6 +39,64 @@
 작업의 완전성을 지켜서 데이터 정합성을 보장함
 
 MySQL의 경우 InnoDB 테이블이 트랜잭션을 지원하고, MyISAM과 MEMORY 테이블은  지원하지 않음
+
+## MySQL Isolation Level
+
+트랜잭션 ACID 중 Isolation(고립성) 특성은 동시성 제어에 관한 것임
+
+여러 트랜잭션이 동시에 처리될 때 특정 트랜잭션이 다른 트랜잭션에서 변경하거나 조회하는 데이터를 볼 수 있게 할건지 결정함
+
+격리 수준 
+```text
+READ UNCOMMITTED(DIRTY READ)       : 고립성 가장 낮음, 동시 처리 성능 높음
+
+READ COMMITTED(NON-REPEATABLE READ): Oracle Default
+
+REPEATABLE READ                    : MySQL InnoDB Default
+
+SERIALIZABLE                       : 고립성 가장 높음, 동시 처리 성능 낮음
+```
+
+| 격리 수준 | DIRTY READ  | NON-REPEATABLE READ  |  PHANTOM READ  |
+| --- |:-----------:|:--------------------:|:--------------:|
+| READ UNCOMMITTED |      O      |          O           |       O        |
+| READ COMMITTED |      X      |          O           |       O        |
+| REPEATABLE READ |      X      |          X           |  O(InnoDB X)   |
+| SERIALIZABLE |      X      |          X           |       X        |
+
+#### READ UNCOMMITTED
+
+커밋 여부와 상관없이 다른 트랜잭션에서 임시적으로 반영한 데이터까지 읽을 수 있음 (**Dirty Read**)
+
+#### READ COMMITTED
+
+커밋된 데이터만 다른 트랜잭션에서 조회 가능(Dirty Read 방지)
+
+A 트랜잭션에서 a 레코드를 변경 중일 때 B 트랜잭션에서 해당 레코드를 조회하면 언두 로그에 있는 데이터가 조회됨
+
+이후 A 트랜잭션에서 변경사항을 커밋하고, B 트랜잭션에서 다시 조회하면 변경된 데이터가 조회됨(이전 데이터와 불일치, **Non-Repeatable Read**)
+
+#### REPEATABLE READ
+
+바이너리 로그를 가진 MySQL 서버의 최소 요구 격리 수준으로
+
+트랜잭션 내에서 조회한 데이터는 다른 트랜잭션이 해당 데이터의 값을 변경한 뒤에 다시 조회해도 트랜잭션이 종료될 때까지 변경되지 않음(Non-Repeatable Read 방지)
+
+동일한 레코드에 대한 변경 사항을 언두 로그에 여러 가지 버전(MVCC)로 저장하는데, 이 때 각 언두 로그에 트랜잭션 ID를 저장함
+
+즉, 트랜잭션에서 조회한 데이터는 특정 트랜잭션 ID를 가진 언두 로그의 데이터이므로, 이 ID 값을 통해 트랜잭션이 종료될 때까지 같은 데이터를 조회할 수 있게 됨
+
+다만, 다른 트랜잭션에서 새로운 레코드를 추가하거나 삭제하는 경우 기존에 조회했던 결과와 다르게 행이 추가되거나 삭제될 수 있음(**Phantom Read**)
+
+#### SERIALIZABLE
+
+가장 높은 격리 수준
+
+읽기 작업도 공유 잠금을 획득해야 됨
+
+트랜잭션에서 읽고 쓰는 레코드를 다른 트랜잭션은 접근할 수 없게 하고, 쿼리가 영향을 미치는 범위 전체에 대해 새로운 데이터를 삽입하지 못하게 함(Phantom Read 방지)
+
+InnoDB의 경우 REPEATABLE READ 격리 수준에는 넥스트 키 락(레코드 락 + 갭 락)을 사용하기 때문에 Phantom Read가 발생하지 않음
 
 ## MySQL Engine Lock
 
@@ -110,3 +177,122 @@ InnoDB의 경우 테이블 락이 설정되지만 레코드 기반의 락을 제
 `RENAME TABLE tab_a TO tab_b` 같이 테이블 이름을 변경하는 경우 원본 이름과 변경될 이름을 한꺼번에 락을 검
 
 ## Storage Engine Lock
+
+### InnoDB Lock
+
+InnoDB는 MySQL Engine Lock과 별개로 자체적인 레코드 기반의 잠금 방식을 탑재함
+
+**InnoDB의 락 종류**
+- 레코드 락
+    - 배타 락(Exclusive Lock)
+    - 공유 락(Shared Lock, S-lock)
+- 갭 락
+- 넥스트 키 락
+- 자동 증가 락
+
+**InnoDB 락 특징**
+- 락 에스컬레이션 없음
+  - 레코드 락 -> 페이지 락, 테이블 락 등으로 업그레이드되지 않음
+- 레코드 기반 락
+  - 레코드 단위로 락을 걸어 다른 트랜잭션의 영향을 최소화함
+- 쓰기 작업(INSERT, UPDATE, DELETE)는 자동으로 락이 걸림
+- 읽기 작업(SELECT)은 기본적으로 락을 걸지 않음 (별도의 락을 걸어야 함)
+
+#### 레코드 락(Record Lock)
+
+- 인덱스의 레코드에 거는 락 
+- 다른 트랜잭션에서 해당 레코드에 접근하지 못하도록 함 
+- 인덱스가 하나도 없는 테이블이더라도 내부적으로 자동 생성된 클러스터 인덱스를 이용해 잠금을 설정함
+- 레코드 자체를 잠그는 다른 DBMS와의 달리 MySQL InnoDB 스토리지 엔진은 인덱스의 레코드에 락을 거는 게 특징임
+- 기본 키(Primary Key), 유니크 인덱스에 의한 변경 작업에선 갭(Gap)에 대해 잠그지 않음
+
+레코드 락은 배타 락과 공유 락으로 구성됨
+- 배타 락
+  - 단일 트랜잭션만이 해당 레코드에 읽기/쓰기 작업(INSERT, UPDATE, DELETE)을 수행
+  - ```sql
+    -- 특정 레코드에 배타락을 걸어 다른 트랜잭션이 해당 레코드를 읽거나 쓰지 못하도록 함
+    SELECT * FROM employees WHERE emp_no = 100 FOR UPDATE;
+    ```
+- 공유 락 
+  - 여러 트랜잭션이 동시에 동일한 레코드를 읽을 수 있도록 허용하지만, 쓰기 작업은 하나의 트랜잭션에서만 수행
+  - ```sql
+    -- 특정 레코드에 공유락을 걸어 다른 트랜잭션이 해당 레코드를 읽기만 가능하도록 함
+    SELECT * FROM employees WHERE emp_no = 100 FOR SHARE;
+    ```
+
+**레코드 락에 대한 중요한 사실**
+
+InnoDB는 테이블의 레코드가 아닌 해당 레코드를 가리키는 인덱스 레코드를 잠금
+
+성능을 최적화하고 필요한 행에만 잠금을 걸어 다른 행에 대한 접근을 허용하기 목적인데
+
+만약 인덱스 값을 기준으로 여러 행이 존재할 경우, 해당 인덱스 값을 가진 모든 인덱스 레코드에 락을 검
+
+```mysql
+UPDATE employees
+SET last_name = 'Doe'
+WHERE first_name = 'John';
+```
+
+위처럼 first_name 칼럼을 멤버로 가진 인덱스가 있는 경우
+
+John이라는 값을 가진 모든 인덱스 레코드에 락을 검
+
+만약 인덱스가 없는 경우, 테이블 전체에 락을 검(성능 저하 발생)
+
+#### 갭 락(Gap Lock)
+
+레코드와 바로 인접한 레코드 사이의 간격을 잠그는 락
+
+레코드와 레코드 사이의 간격에 새로운 레코드가 생성(INSERT)되는 것을 제어함
+
+팬텀 읽기 방지 목적
+
+```sql
+// 특정 범위의 인덱스 간격에 락을 걸어 다른 트랜잭션이 레코드 중간에 INSERT 하지 못하도록 함
+SELECT * FROM employees WHERE emp_no > 100 FOR UPDATE;
+```
+
+#### 넥스트 키 락(Next-Key Lock)
+
+레코드 락과 갭 락을 결합한 락
+
+특정 레코드와 그 주변의 인덱스 간격을 동시에 잠금
+
+팬텀 읽기 방지 목적
+
+주로 `REPEATABLE READ` 격리 수준에서 사용됨
+
+```sql
+// 특정 레코드와 그 주변 간격에 락을 걸어 다른 트랜잭션 접근 방지 
+SELECT * FROM employees WHERE emp_no = 100 FOR UPDATE;
+```
+
+#### 자동 증가 락(Autoinc Lock)
+
+MySQL에서는 자동 증가 컬럼(`AUTO_INCREMENT`)을 사용하는데, 여러 INSERT/REPLACE 명령어가 실행될 때(새로운 레코드를 저장하는 쿼리) 
+
+중복된 값이 생성되지 않도록 자동 증가 락이라고 하는 테이블 수준의 락을 검
+
+자동 증가 값이 한 번 증가하면 줄어들지 않는 이유가 AUTO_INCREMENT 락을 최소화하기 위함임
+
+실행 INSERT 쿼리가 실패했더라도 한 번 증가된 값은 줄어들지 않음
+
+#### 레코드 락 vs 넥스트 키 락
+
+레코드 락
+- 배타 락 + 공유 락
+- 특정 인덱스 레코드에 걸리는 락
+- 특정 행에 대한 동시 접근 제어
+- READ COMMITTED 격리 수준에선 레코드 락만 사용
+
+넥스트 키 락
+- 레코드 락 + 갭 락
+- 특정 인덱스 레코드와 그 주변의 간격에 걸리는 락
+- REPEATABLE READ 격리 수준에서 적용(팬텀 읽기 방지)
+
+**락 모니터링**
+
+information_schema 데이터베이스의 INNODB_TRX, INNODB_LOCKS, INNODB_LOCK_WAITS를 통해 트랜잭션 락을 확인하거나 클라이언트를 종료시킬 수 있음
+
+Performance Schema를 통해 InnoDB 엔진 내부 락(세마 포어)에 대한 모니터링도 가능

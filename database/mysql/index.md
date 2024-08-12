@@ -598,7 +598,11 @@ INSERT INTO employees (employee_id, first_name, last_name, hire_date, salary) VA
 (5, 'Eve', 'Foster', '2024-08-12', 75000.00);
 ```
 
-공통 제약사항
+**공통 제약사항**
+- MySQL B-Tree 인덱스는 왼쪽 기준(Left-most) 정렬 기반이므로 항상 인덱스를 사용할 때 앞의 컬럼 인덱스를 포함해야 됨
+- 즉, 다중 컬럼 인덱스의 중간 컬럼 인덱스만 사용한 경우 인덱스를 아예 사용하지 못함
+- 그리고 각 컬럼은 인덱스를 적용할 수 있도록 적절하게 사용되어야 함
+
 
 ### WHERE 절
 

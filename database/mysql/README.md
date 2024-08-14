@@ -2,6 +2,10 @@
 
 [Readings](readings.md)
 
+[Objects](Objects.md)
+
+[SQL](SQL.md)
+
 [Architecture](architecture.md)
 
 [User, Privileges](user,%20privileges.md)

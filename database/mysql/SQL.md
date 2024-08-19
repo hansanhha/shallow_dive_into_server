@@ -17,13 +17,22 @@
 - [수정 (Update)](#수정-update)
 - [삭제 (Delete)](#삭제-delete)
 
+[DQL](#dql-data-query-language)
+- [SELECT](#select)
+- [FROM](#from)
+  - [JOIN](#join)
+- [WHERE](#where)
+- [GROUP BY](#group-by)
+- [HAVING](#having)
+- [ORDER BY](#order-by)
+- [LIMIT](#limit)
+- [SQL 실행 순서](#sql-실행-순서)
+
 [TCL](#tcl-transaction-control-language)
 - [COMMIT](#commit)
 - [ROLLBACK](#rollback)
 - [SAVAPOINT](#savepoint)
 - [SET TRANSACTION](#set-transaction)
-
-[DQL](#dql-data-query-language)
 
 ## SQL (Structured Query Language)
 
@@ -349,80 +358,11 @@ WHERE name = 'mike';
 DELETE FROM employees;
 ```
 
-## TCL (Transaction Control Language)
-
-TCL은 데이터베이스에서 트랜잭션을 제어와 관리에 사용되는 SQL 명령어임
-
-트랜잭션은 데이터베이스 무결성과 일관성을 보장하기 위해 SQL 연산을 하나의 논리적인 단위로 묶어 처리하는 것을 말함
-
-### COMMIT
-
-트랜잭션을 데이터베이스에 영구히 반영하는 명령어
-
-이 명령어를 실행하면, 현재 트랜잭션 내의 모든 변경사항이 확정되며, 롤백을 할 수 없게 됨
-
-```mysql
-# 트랜잭션 시작
-START TRANSACTION
-
-# 데이터 작업 ... 
-
-# 변경사항 반영 
-```
-COMMIT
-
-### ROLLBACK
-
-현재 트랜잭션에서 이뤄진 모든 변경사항을 취소하고, 데이터베이스를 트랜잭션 시작 전의 상태로 되돌림
-
-```mysql
-# 트랜잭션 시작
-START TRANSACTION
-
-# 데이터 작업 ... 
-
-# 원 상태로 복구
-ROLLBACK
-```
-
-### SAVEPOINT
-
-트랜잭션 내에서 특정 시점에 저장점을 설정하여, 해당 시점 이후의 변경사항만 롤백할 수 있도록 함
-
-```mysql
-START TRANSACTION 
-
-# 데이터 작업 1 ...
-
-SAVEPOINT savepoint1;
-
-# 데이터 작업 2 ...
-
-# savedpoint1 이후의 작업만 취소 (데이터 작업 1은 롤백하지 않음)
-ROLLBACK savepoint1;
-
-COMMIT
-```
-
-### SET TRANSACTION
-
-트랜잭션의 격리 수준과 같은 특성을 설정하는 데 사용됨
-
-```mysql
-# 트랜잭션 시작 및 격리 수준 설정
-SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
-START TRANSACTION;
-
-# 데이터 작업 ...
-
-COMMIT;
-```
-
 ## DQL (Data Query Language)
 
 DQL은 데이터베이스에 저장된 데이터를 검색하는 데 사용되는 명령어임
 
-데이터를 추출하기 위해 필요한 절을 추가하여 필터링, 그룹화, 정렬 등을 수행할 수 있음 
+데이터를 추출하기 위해 필요한 절을 추가하여 필터링, 그룹화, 정렬 등을 수행할 수 있음
 
 쿼리에 따라 적절한 인덱스를 사용하여 빠른 성능을 내거나, 느린 성능을 보여줄 수 있음
 
@@ -435,36 +375,36 @@ SELECT 절은 조회된 레코드들에 대해 가져올 데이터를 선택하�
 #### SELECT 절에 명시할 수 있는 항목들
 
 컬럼 이름
-  - 테이블의 특정 컬럼을 선택함
-  - `SELECT first_name FROM users;`
+- 테이블의 특정 컬럼을 선택함
+- `SELECT first_name FROM users;`
 
 와일드 카드
-  - 테이블의 모든 컬럼을 선택함
-  - `SELECT * FROM users;`
+- 테이블의 모든 컬럼을 선택함
+- `SELECT * FROM users;`
 
 별칭
-  - AS 키워드를 사용하여 컬럼에 별칭을 지정함
-  - `SELECT first_name AS fname FROM users;`
+- AS 키워드를 사용하여 컬럼에 별칭을 지정함
+- `SELECT first_name AS fname FROM users;`
 
 표현식
-  - 컬럼 간의 계산이나 문자열 연결 등의 표현식을 사용할 수 있음
-  - `SELECT CONCAT(first_name, ' ', last_name) AS full_name FROM users;`
+- 컬럼 간의 계산이나 문자열 연결 등의 표현식을 사용할 수 있음
+- `SELECT CONCAT(first_name, ' ', last_name) AS full_name FROM users;`
 
 집계 함수
-  - COUNT, SUM, AVG, MAX, MIN 등의 집계 함수를 사용하여 결과를 집계할 수 있음
-  - `SELECT COUNT(*) FROM users;`
+- COUNT, SUM, AVG, MAX, MIN 등의 집계 함수를 사용하여 결과를 집계할 수 있음
+- `SELECT COUNT(*) FROM users;`
 
 DISTINCT
-  - 중복된 값을 제거하고 유일한 값만 선택함
-  - `SELECT DISTINCT country FROM users;`
+- 중복된 값을 제거하고 유일한 값만 선택함
+- `SELECT DISTINCT country FROM users;`
 
 서브쿼리
-  - 다른 쿼리의 결과를 가져옴
-  - `SELECT (SELECT MAX(age) FROM users) AS max_age;`
+- 다른 쿼리의 결과를 가져옴
+- `SELECT (SELECT MAX(age) FROM users) AS max_age;`
 
 CASE문
-  - 조건에 따라 값을 선택하는 논리 연산 수행
-  - ```mysql
+- 조건에 따라 값을 선택하는 논리 연산 수행
+- ```mysql
     SELECT first_name,
            last_name, 
            CASE 
@@ -484,12 +424,12 @@ SELECT 절이 어떤 데이터를 가져올 지 결정한다면, FROM 절은 그
 #### FROM 절에 명시할 수 있는 항목들
 
 단일 테이블
-  - 하나의 테이블 지정
-  - `SELECT * FROM users;`
+- 하나의 테이블 지정
+- `SELECT * FROM users;`
 
 여러 테이블
-  - 쉼표로 구분하여 여러 테이블을 지정할 수 있으나, 명시적으로 JOIN을 사용하는 게 더 명확함
-  - `SELECT * FROM users, orders;`
+- 쉼표로 구분하여 여러 테이블을 지정할 수 있으나, 명시적으로 JOIN을 사용하는 게 더 명확함
+- `SELECT * FROM users, orders;`
 
 서브 쿼리
 - FROM 절 안에서 서브쿼리를 사용하는 경우, 가상 테이블을 생성하는 것과 같은 효과를 가짐
@@ -506,7 +446,7 @@ SELECT 절이 어떤 데이터를 가져올 지 결정한다면, FROM 절은 그
 - 뷰는 하나 이상의 테이블에 대한 쿼리 결과를 가상의 테이블처럼 사용하는 것임
 - `SELECT * FROM active_users_view;`
 
-#### 조인
+#### JOIN
 
 FROM 절에서 2개 이상의 테이블을 연결하여 데이터를 조회하는 방법으로
 
@@ -619,8 +559,8 @@ WHERE 절은 조건을 지정하여, 그 조건을 만족한 행들만 결과로
 - `<`, `>`, `<=`, `>=`: 값이 특정 범위에 속하는지를 확인함
   - `SELECT * FROM users WHERE age > 20;`
   - `SELECT * FROM users WHERE age <= 30;`
-- `LIKE`: 문자열이 특정 패턴과 일치하는 지 확인함, `%`는 0개 이상의 임의의 문자를, `_`는 1개의 임의의 문자를 의미함 
-  - `SELECT * FROM users WHERE name LIKE 'A%';` 
+- `LIKE`: 문자열이 특정 패턴과 일치하는 지 확인함, `%`는 0개 이상의 임의의 문자를, `_`는 1개의 임의의 문자를 의미함
+  - `SELECT * FROM users WHERE name LIKE 'A%';`
 
 논리 연산자 (Logical Operators)
 - AND
@@ -751,3 +691,72 @@ LIMIT 10, 5; # LIMIT 5 OFFSET 10와 동일
 출처 ByteByteGo
 
 FROM -> JOIN -> ON -> WHERE -> GROUP BY -> HAVING -> SELECT -> ORDER BY -> LIMIT 순서로 쿼리가 실행됨
+
+## TCL (Transaction Control Language)
+
+TCL은 데이터베이스에서 트랜잭션을 제어와 관리에 사용되는 SQL 명령어임
+
+트랜잭션은 데이터베이스 무결성과 일관성을 보장하기 위해 SQL 연산을 하나의 논리적인 단위로 묶어 처리하는 것을 말함
+
+### COMMIT
+
+트랜잭션을 데이터베이스에 영구히 반영하는 명령어
+
+이 명령어를 실행하면, 현재 트랜잭션 내의 모든 변경사항이 확정되며, 롤백을 할 수 없게 됨
+
+```mysql
+# 트랜잭션 시작
+START TRANSACTION
+
+# 데이터 작업 ... 
+
+# 변경사항 반영
+COMMIT
+```
+
+### ROLLBACK
+
+현재 트랜잭션에서 이뤄진 모든 변경사항을 취소하고, 데이터베이스를 트랜잭션 시작 전의 상태로 되돌림
+
+```mysql
+# 트랜잭션 시작
+START TRANSACTION
+
+# 데이터 작업 ... 
+
+# 원 상태로 복구
+ROLLBACK
+```
+
+### SAVEPOINT
+
+트랜잭션 내에서 특정 시점에 저장점을 설정하여, 해당 시점 이후의 변경사항만 롤백할 수 있도록 함
+
+```mysql
+START TRANSACTION 
+
+# 데이터 작업 1 ...
+
+SAVEPOINT savepoint1;
+
+# 데이터 작업 2 ...
+
+# savedpoint1 이후의 작업만 취소 (데이터 작업 1은 롤백하지 않음)
+ROLLBACK savepoint1;
+
+COMMIT
+```
+
+### SET TRANSACTION
+
+트랜잭션의 격리 수준과 같은 특성을 설정하는 데 사용됨
+
+```mysql
+# 트랜잭션 시작 및 격리 수준 설정
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+START TRANSACTION;
+
+# 데이터 작업 ...
+
+COMMIT;
+```

@@ -199,13 +199,6 @@
 
 컨테이너가 호스트 컴퓨터에게 포트를 공개한 경우, 도커가 해당 포트로 들어오는 트래픽을 컨테이너로 전달해줘서 외부로부터의 접근을 허용함
 
-## Docker Registry
-
-## Docker Images
-
-- Layered File System(image layer)
-- Immutable
-
 ## Dockerfile
 
 instruction

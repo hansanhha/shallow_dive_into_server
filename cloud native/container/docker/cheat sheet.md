@@ -55,3 +55,11 @@
 
 #### 이미지 빌드 과정 확인
 - `docker image history <image_name> or <image_id>`
+
+#### 이미지 참조 부여
+- `docker image tag <image_name> [<docker registry>/]<group or docker_username>/<repository_name>[:<tag>]`
+- `docker image tag simple-java-project hansanhha/simple-java-project:0.1.0`
+
+#### 이미지 푸시
+- `docker image push [<docker registry>/]<group or docker_username>/<repository_name>[:<tag>]`
+- `docker image push hansanhha/simple-java-project:0.1.0`

@@ -2,6 +2,8 @@
 
 [특징](#특징)
 
+[키-값 nosql vs rdbms](#키-값-nosql-vs-rdbms)
+
 [데이터 저장 방식에 따른 nosql db 구분](#데이터-저장-방식에-따른-nosql-db-구분)
 
 [nosql 트랜잭션과 일관성 제약](#nosql-트랜잭션과-일관성-제약)
@@ -41,6 +43,54 @@ nosql 데이터베이스는 분산된 하드웨어 클러스터를 사용하여 
 대규모 데이터 처리에 뛰어난 성능을 발휘한다
 
 대량의 데이터를 빠르게 삽입하고 조회할 수 있는 방법을 제공하여 읽기/쓰기 성능이 중요한 실시간 애플리케이션이나 빅데이터 환경에서 자주 사용된다
+
+## 키-값 nosql vs rdbms
+
+[참고](https://djlee118.tistory.com/95)
+
+#### 패러다임 차이
+
+rdbms: 데이터 구조화(데이터 간 관계를 정의), 데이터 중복 지양, 데이터의 일관성 추구
+
+nosql: 단일 key를 사용하여 데이터 처리, 대량의 데이터 저장 조회, 단순성 추구
+
+#### 설계 차이
+
+rdbms: 도메인/요구사항 분석 -> 엔티티 간 관계 정의 -> 스키마 설계 -> 쿼리
+
+nosql: 도메인/요구사항 분석 -> 조회할 데이터 분석 -> 데이터 저장/조회
+
+#### 데이터 취급 차이
+
+rdbms: 정규화, 엔티티 간의 관계에 따라 각 테이블이 데이터에 대한 부분 정보를 가지고 있고 쿼리를 통해 전체 정보 조회
+
+```sql
+SELECT * 
+FROM post 
+INNER JOIN user ON post.user_id = user.id 
+WHERE user.id = "hansanhha" 
+```
+
+```text
+ table                 table
+[user]   ---1:N--->   [post]
+  id                    id
+                      user_id
+                       title
+                      content
+```
+
+nosql: 값이 아닌 키에 부분 정보가 포함되며, 키를 통해 데이터 조회
+
+```redis
+GET users:hansanhha:posts:1
+```
+
+```text
+       [key]     ----------------->   [value]
+users:userid:posts:num                 title
+                                      content
+```
 
 ## 데이터 저장 방식에 따른 nosql db 구분
 
